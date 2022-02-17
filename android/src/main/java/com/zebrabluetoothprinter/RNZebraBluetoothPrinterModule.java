@@ -430,7 +430,7 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
     @ReactMethod
     public void print(String device, String label, Boolean disconnectAfterPrinting, final Promise promise) {  //print functionality for zebra printer
         //if not already connected try and connect
-        if (!connection.isConnected()) {
+        if (connection == null || !connection.isConnected()) {
             connection = new BluetoothConnection(device);
             try {
                 connection.open();
