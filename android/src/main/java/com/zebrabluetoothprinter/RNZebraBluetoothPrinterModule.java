@@ -17,6 +17,7 @@ import java.util.Iterator;
 
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.bluetooth.le.ScanCallback;
 import android.util.Log;
@@ -123,6 +124,17 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
         }
     }
 
+    private boolean checkPermissions() throws Exception {
+        if (this.bluetoothAdapter == null || !this.bluetoothAdapter.isEnabled()) {
+            throw new Exception("Bluetooth not enabled");
+//                promise.reject("Bluetooth not enabled");
+        } else if (!this.hasCorrectPermission()) {
+//                promise.reject("Missing required Bluetooth Permissions");
+            throw new Exception("Missing required Bluetooth Permissions");
+        }
+        return true;
+    }
+
     @Override
     public String getName() {
         return "RNZebraBluetoothPrinter";
@@ -135,16 +147,17 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
     @ReactMethod
     public void enableBluetooth(final Promise promise) {
         try {
+
             this.reactContext.startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), 1, null);
-            promise.resolve("enabled");
+            promise.resolve(true);
+
         } catch (Exception e) {
             promise.reject(e);
-        }                                                                                       //enable bluetooth
+        }
     }
 
     @ReactMethod
-    public void isEnabledBluetooth(final Promise promise) {                                                     //check if the bluetooth is enabled or not
-
+    public void isEnabledBluetooth(final Promise promise) {
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
             promise.resolve(false);
         } else {
@@ -152,38 +165,111 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
         }
     }
 
-    @ReactMethod
-    public void scanDevices(final Promise promise) {                                                    //scan for unpaired devices
-        if (this.bluetoothAdapter == null || !this.bluetoothAdapter.isEnabled()) {
-            promise.reject("BT NOT ENABLED");
+    private boolean hasCorrectPermission() {
+//        try {
+
+//            if (ContextCompat.checkSelfPermission(reactContext.getCurrentActivity(), android.Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_DENIED)
+//            {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+//                    int admin = ContextCompat.checkSelfPermission(reactContext.getCurrentActivity(), android.Manifest.permission.BLUETOOTH_ADMIN);
+            int connect = ContextCompat.checkSelfPermission(reactContext.getCurrentActivity(), android.Manifest.permission.BLUETOOTH_CONNECT);
+            int scan = ContextCompat.checkSelfPermission(reactContext.getCurrentActivity(), android.Manifest.permission.BLUETOOTH_SCAN);
+
+            if (connect == PackageManager.PERMISSION_GRANTED && scan == PackageManager.PERMISSION_GRANTED) {
+                return true;
+            }
+
+//                    ActivityCompat.requestPermissions(reactContext.getCurrentActivity(), new String[]{
+//                            android.Manifest.permission.BLUETOOTH_ADMIN,
+//                            android.Manifest.permission.BLUETOOTH_CONNECT,
+//                            android.Manifest.permission.BLUETOOTH_SCAN
+//                    }, 2);
+
         } else {
-            cancelDiscovery();
-            int permissionChecked = ContextCompat.checkSelfPermission(reactContext,
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION);
 
-            if (permissionChecked == PackageManager.PERMISSION_DENIED) {
+            int bluetooth = ContextCompat.checkSelfPermission(reactContext.getCurrentActivity(), android.Manifest.permission.BLUETOOTH);
+            int location = ContextCompat.checkSelfPermission(reactContext.getCurrentActivity(), android.Manifest.permission.ACCESS_FINE_LOCATION);
 
-                ActivityCompat.requestPermissions(reactContext.getCurrentActivity(),
-                        new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+            if (bluetooth == PackageManager.PERMISSION_GRANTED && location == PackageManager.PERMISSION_GRANTED) {
+                return true;
             }
 
-            if (!this.bluetoothAdapter.startDiscovery()) {
+//                    ActivityCompat.requestPermissions(reactContext.getCurrentActivity(), new String[]{
+//                            android.Manifest.permission.BLUETOOTH,
+//                            android.Manifest.permission.ACCESS_FINE_LOCATION
+//                    }, 2);
 
-                promise.reject("DISCOVER", "NOT_STARTED");
-                cancelDiscovery();
-            } else {
-                promiseMap.put(PROMISE_SCAN, promise);
-            }
+        }
+
+
+        //            int bluetoothScanPermissionChecked = ContextCompat.checkSelfPermission(reactContext,
+//                    android.Manifest.permission.BLUETOOTH_SCAN);
+//
+//            if (bluetoothScanPermissionChecked == PackageManager.PERMISSION_DENIED) {
+//
+//                ActivityCompat.requestPermissions(reactContext.getCurrentActivity(),
+//                        new String[]{android.Manifest.permission.BLUETOOTH_SCAN}, 1);
+//            }
+//
+//            int permissionChecked = ContextCompat.checkSelfPermission(reactContext,
+//                    android.Manifest.permission.ACCESS_COARSE_LOCATION);
+//
+//            if (permissionChecked == PackageManager.PERMISSION_DENIED) {
+//
+//                ActivityCompat.requestPermissions(reactContext.getCurrentActivity(),
+//                        new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+//            }
+
+
+
+        return false;
+    }
+
+    @ReactMethod
+    public void hasCorrectPermissions(final Promise promise) {                                                     //check if the bluetooth is enabled or not
+
+        try {
+            promise.resolve(this.hasCorrectPermission());
+        } catch (Exception e) {
+            promise.reject(e);
         }
     }
 
     @ReactMethod
-    public void disableBluetooth(final Promise promise) {                                           // disable bluetooth
-        if (bluetoothAdapter == null) {    // bluetooth already disabled
-            promise.resolve(true);
-        } else {
-            bluetoothAdapter.disable();     // disable bluetooth
-            promise.resolve(true);
+    public void scanDevices(final Promise promise) {                                                    //scan for unpaired devices
+        try {
+
+            if (this.checkPermissions()) {
+
+                cancelDiscovery();
+
+                if (!this.bluetoothAdapter.startDiscovery()) {
+
+                    promise.reject("DISCOVER", "NOT_STARTED");
+                    cancelDiscovery();
+                } else {
+                    promiseMap.put(PROMISE_SCAN, promise);
+                }
+            }
+        } catch (Exception e) {
+            promise.reject(e);
+        }
+    }
+
+    @ReactMethod
+    public void disableBluetooth(final Promise promise) {
+        try {
+            if (this.checkPermissions()) {
+                if (bluetoothAdapter == null) {    // bluetooth already disabled
+                    promise.resolve(true);
+                } else {
+                    bluetoothAdapter.disable();     // disable bluetooth
+                    promise.resolve(true);
+                }
+            }
+        } catch (Exception e) {
+            promise.reject(e);
         }
     }
 
@@ -250,30 +336,31 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
 
     @ReactMethod
     public void pairedDevices(final Promise promise) {
-        this.context = getCurrentActivity();
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            promise.reject("BT NOT ENABLED");
-        } else {
-            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-            List<String> deviceName = new ArrayList<String>();
-            List<String> deviceAddress = new ArrayList<String>();
-            List<Integer> ble = new ArrayList<Integer>();
-            try {
-                WritableArray app_list = new WritableNativeArray();
-                for (BluetoothDevice bt : pairedDevices) {
-                    BluetoothClass bluetoothClass = bt.getBluetoothClass();    // get class of bluetooth device
-                    WritableMap info = new WritableNativeMap();
-                    info.putString("address", bt.getAddress());
-                    info.putDouble("class", bluetoothClass.getDeviceClass()); //1664
-                    info.putString("name", bt.getName());
-                    info.putString("type", "paired");
-                    app_list.pushMap(info);
-                }
-                promise.resolve(app_list);
-            } catch (Exception e) {
-                promise.reject(E_LAYOUT_ERROR, e);
-            }
+        try {
 
+            if (this.checkPermissions()) {
+                Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+                List<String> deviceName = new ArrayList<String>();
+                List<String> deviceAddress = new ArrayList<String>();
+                List<Integer> ble = new ArrayList<Integer>();
+                try {
+                    WritableArray app_list = new WritableNativeArray();
+                    for (BluetoothDevice bt : pairedDevices) {
+                        BluetoothClass bluetoothClass = bt.getBluetoothClass();    // get class of bluetooth device
+                        WritableMap info = new WritableNativeMap();
+                        info.putString("address", bt.getAddress());
+                        info.putDouble("class", bluetoothClass.getDeviceClass()); //1664
+                        info.putString("name", bt.getName());
+                        info.putString("type", "paired");
+                        app_list.pushMap(info);
+                    }
+                    promise.resolve(app_list);
+                } catch (Exception e) {
+                    promise.reject(E_LAYOUT_ERROR, e);
+                }
+            }
+        } catch (Exception e) {
+            promise.reject(E_LAYOUT_ERROR, e);
         }
     }
 
@@ -388,6 +475,7 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
 
     public void disconnect() {
         try {
+
             if (connection != null) {
                 connection.close();
             }
@@ -412,23 +500,23 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
     }
 
     @ReactMethod
-    public void disconnectFromPrinter(final Promise promise) {  //disconnect from zebra printer
+    public void disconnectFromPrinter(final Promise promise) {
         try {
             if (connection != null) {
                 connection.close();
             }
+
+            promise.resolve(true);
         } catch (ConnectionException e) {
             Log.d("Error on disconnect", e.toString());
 
             promise.reject("Error disconnecting from the printer");
         }
-
-        promise.resolve(true);
     }
 
 
     @ReactMethod
-    public void print(String device, String label, Boolean disconnectAfterPrinting, final Promise promise) {  //print functionality for zebra printer
+    public void print(String device, String label, int sleepDelay, Boolean disconnectAfterPrinting, final Promise promise) {            //print functionality for zebra printer
         //if not already connected try and connect
         if (connection == null || !connection.isConnected()) {
             connection = new BluetoothConnection(device);
@@ -445,9 +533,10 @@ public class RNZebraBluetoothPrinterModule extends ReactContextBaseJavaModule im
             try {
                 byte[] configLabel = label.getBytes();
                 connection.write(configLabel);
-                sleep(300);
+                sleep(sleepDelay);
 
                 promise.resolve(true);
+
             } catch (Exception err) {
                 Log.d("Connection err", err.toString());
                 promise.reject(err.toString());
