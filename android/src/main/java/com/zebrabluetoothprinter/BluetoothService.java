@@ -50,11 +50,11 @@ public class BluetoothService {
     public void addStateObserver(BluetoothServiceStateObserver observer) {
         observers.add(observer);
     }
-    
+
     public void removeStateObserver(BluetoothServiceStateObserver observer) {
         observers.remove(observer);
     }
-    
+
     private synchronized void setState(int state, Map<String, Object> bundle) {
         if (DEBUG)
             Log.d(TAG, "setState() " + getStateName(mState) + " -> " + getStateName(state));
@@ -79,18 +79,18 @@ public class BluetoothService {
             ob.onBluetoothServiceStateChanged(code, bundle);
         }
     }
-    
+
     public synchronized int getState() {
         return mState;
     }
-    
+
     public synchronized void stop() {
         if (mConnectedThread != null) {
             mConnectedThread.cancel();
             mConnectedThread = null;
         }
     }
-    
+
     public synchronized void connect(BluetoothDevice device) {
         if (DEBUG)
             Log.d(TAG, "connect to: " + device);
@@ -126,7 +126,7 @@ public class BluetoothService {
         setState(STATE_NONE, null);
         infoObervers(MESSAGE_CONNECTION_LOST, null);
     }
-    
+
     private class ConnectedThread extends Thread {
         private final BluetoothDevice mmDevice;
         private BluetoothSocket mmSocket;
