@@ -1,8 +1,7 @@
-
 buildscript {
     repositories {
-        jcenter()
-         google()
+        mavenCentral()
+        google()
     }
 
     dependencies {
