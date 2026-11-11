@@ -12,7 +12,8 @@ buildscript {
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 31
+    // Follow the host app's compileSdk (React Native 0.88+ requires 34 or later)
+    compileSdkVersion rootProject.ext.has('compileSdkVersion') ? rootProject.ext.get('compileSdkVersion') : 31
     buildToolsVersion "28.0.3"
 
     defaultConfig {
